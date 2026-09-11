@@ -1,0 +1,175 @@
+{% extends "base.html" %}
+
+{% block title %}Admin Dashboard - LibriVerse{% endblock %}
+{% block header_title %}Admin Control Dashboard{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-column flex-md-row align-items-start align-items-md-center justify-content-between gap-3 mb-4">
+  <div>
+    <h3 class="fw-bold mb-1">Welcome back, {{ current_user.full_name }}! 👋</h3>
+    <p class="text-muted small mb-0">Here is the latest overview of library assets, circulations, and member activities.</p>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="{{ url_for('admin_books') }}" class="btn btn-primary btn-sm d-flex align-items-center gap-1 shadow-sm">
+      <i class="bi bi-plus-circle"></i> Add New Book
+    </a>
+    <a href="{{ url_for('admin_issues') }}" class="btn btn-outline-primary btn-sm d-flex align-items-center gap-1 bg-white">
+      <i class="bi bi-arrow-left-right"></i> Issue / Return
+    </a>
+  </div>
+</div>
+
+<!-- Metrics Cards Row -->
+<div class="row g-3 mb-4">
+  <div class="col-sm-6 col-xl-3">
+    <div class="card stat-card border-0 h-100">
+      <div class="d-flex justify-content-between align-items-start">
+        <div>
+          <span class="stat-label">Unique Titles</span>
+          <div class="stat-value text-primary">{{ stats.total_books }}</div>
+          <span class="text-xs text-muted" style="font-size: 0.8rem;">Across {{ stats.categories|length }} categories</span>
+        </div>
+        <div class="stat-icon-wrapper stat-icon-primary">
+          <i class="bi bi-book"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-sm-6 col-xl-3">
+    <div class="card stat-card border-0 h-100">
+      <div class="d-flex justify-content-between align-items-start">
+        <div>
+          <span class="stat-label">Available Copies</span>
+          <div class="stat-value text-success">{{ stats.available_copies }} <span class="fs-6 fw-normal text-muted">/ {{ stats.total_copies }}</span></div>
+          <span class="text-xs text-success" style="font-size: 0.8rem;">Ready for circulation</span>
+        </div>
+        <div class="stat-icon-wrapper stat-icon-success">
+          <i class="bi bi-check2-circle"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-sm-6 col-xl-3">
+    <div class="card stat-card border-0 h-100">
+      <div class="d-flex justify-content-between align-items-start">
+        <div>
+          <span class="stat-label">Currently Issued</span>
+          <div class="stat-value text-warning">{{ stats.issued_copies }}</div>
+          <span class="text-xs text-muted" style="font-size: 0.8rem;">With library members</span>
+        </div>
+        <div class="stat-icon-wrapper stat-icon-warning">
+          <i class="bi bi-journal-arrow-up"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-sm-6 col-xl-3">
+    <div class="card stat-card border-0 h-100">
+      <div class="d-flex justify-content-between align-items-start">
+        <div>
+          <span class="stat-label">Overdue Books</span>
+          <div class="stat-value text-danger">{{ stats.overdue_count }}</div>
+          <span class="text-xs text-danger" style="font-size: 0.8rem;">Fine rate: $2.00/day</span>
+        </div>
+        <div class="stat-icon-wrapper stat-icon-danger">
+          <i class="bi bi-exclamation-octagon"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-4">
+  <!-- Recent Borrow Activity Table -->
+  <div class="col-lg-8">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-header bg-white py-3 border-bottom d-flex align-items-center justify-content-between">
+        <h6 class="fw-bold mb-0 text-dark"><i class="bi bi-clock-history me-2 text-primary"></i>Recent Circulation Activity</h6>
+        <a href="{{ url_for('admin_issues') }}" class="small text-decoration-none fw-semibold">View All Activity &rarr;</a>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead>
+            <tr>
+              <th>Book Title</th>
+              <th>Member</th>
+              <th>Due Date</th>
+              <th>Status</th>
+              <th class="text-end">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for record in stats.recent_records %}
+              <tr>
+                <td class="fw-semibold text-dark">{{ record.book_title }}</td>
+                <td>
+                  <span class="fw-medium">{{ record.user_name }}</span>
+                  <div class="text-xs text-muted" style="font-size: 0.75rem;">@{{ record.username }}</div>
+                </td>
+                <td class="small">{{ record.due_date.split(' ')[0] }}</td>
+                <td>
+                  {% if record.status == 'borrowed' %}
+                    <span class="badge-status badge-borrowed"><i class="bi bi-hourglass-split"></i> Borrowed</span>
+                  {% elif record.status == 'overdue' %}
+                    <span class="badge-status badge-overdue"><i class="bi bi-exclamation-triangle"></i> Overdue</span>
+                  {% else %}
+                    <span class="badge-status badge-returned"><i class="bi bi-check-circle"></i> Returned</span>
+                  {% endif %}
+                </td>
+                <td class="text-end">
+                  {% if record.status in ['borrowed', 'overdue'] %}
+                    <form method="POST" action="{{ url_for('admin_return_book', record_id=record.id) }}" class="d-inline">
+                      <button type="submit" class="btn btn-sm btn-outline-success py-1 px-2.5 rounded-pill" title="Process Return">
+                        <i class="bi bi-arrow-return-left"></i> Return
+                      </button>
+                    </form>
+                  {% else %}
+                    <span class="text-muted small">Completed</span>
+                  {% endif %}
+                </td>
+              </tr>
+            {% else %}
+              <tr>
+                <td colspan="5" class="text-center py-4 text-muted">No circulation activity recorded yet.</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Category Distribution & System Summary -->
+  <div class="col-lg-4">
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-header bg-white py-3 border-bottom">
+        <h6 class="fw-bold mb-0 text-dark"><i class="bi bi-pie-chart-fill me-2 text-primary"></i>Collection by Category</h6>
+      </div>
+      <div class="card-body p-0">
+        <ul class="list-group list-group-flush">
+          {% for cat in stats.categories %}
+            <li class="list-group-item d-flex justify-content-between align-items-center py-2.5 px-3">
+              <span class="small fw-medium">{{ cat.category }}</span>
+              <span class="badge bg-light text-dark border">{{ cat.count }} titles ({{ cat.copies }} copies)</span>
+            </li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+
+    <div class="card border-0 shadow-sm bg-gradient text-white p-3" style="background: linear-gradient(135deg, #312e81 0%, #4f46e5 100%); border-radius: 12px;">
+      <div class="d-flex align-items-center gap-3">
+        <div class="fs-1 text-warning"><i class="bi bi-people-fill"></i></div>
+        <div>
+          <div class="fw-bold fs-5">{{ stats.total_users }} Registered Members</div>
+          <p class="small text-light opacity-75 mb-2">Manage library memberships, track user borrowing limits and history.</p>
+          <a href="{{ url_for('admin_users') }}" class="btn btn-sm btn-light fw-semibold text-primary">Manage Members &rarr;</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

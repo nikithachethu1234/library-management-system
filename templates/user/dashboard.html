@@ -1,0 +1,202 @@
+{% extends "base.html" %}
+
+{% block title %}My Dashboard - LibriVerse{% endblock %}
+{% block header_title %}Member Dashboard{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-column flex-md-row align-items-start align-items-md-center justify-content-between gap-3 mb-4">
+  <div>
+    <h3 class="fw-bold mb-1">Hello, {{ current_user.full_name }}! 📖</h3>
+    <p class="text-muted small mb-0">Track your borrowed titles, due dates, and discover new books in our collection.</p>
+  </div>
+  <a href="{{ url_for('user_books') }}" class="btn btn-primary d-flex align-items-center gap-1 shadow-sm">
+    <i class="bi bi-search"></i> Browse Catalog &amp; Borrow
+  </a>
+</div>
+
+{% if stats.overdue_count > 0 %}
+  <div class="alert alert-danger border-0 shadow-sm d-flex align-items-center gap-3 mb-4" role="alert">
+    <i class="bi bi-exclamation-octagon-fill fs-3 text-danger"></i>
+    <div>
+      <div class="fw-bold">Notice: You have {{ stats.overdue_count }} overdue book(s)!</div>
+      <div class="small">Please return your overdue titles to the library as soon as possible. Fines accrue at $2.00 per day.</div>
+    </div>
+  </div>
+{% endif %}
+
+<!-- Metric Cards -->
+<div class="row g-3 mb-4">
+  <div class="col-sm-6 col-xl-3">
+    <div class="card stat-card border-0 h-100">
+      <div class="d-flex justify-content-between align-items-start">
+        <div>
+          <span class="stat-label">Currently Borrowed</span>
+          <div class="stat-value text-primary">{{ stats.active_count }} <span class="fs-6 fw-normal text-muted">/ 5 max</span></div>
+          <span class="text-xs text-muted" style="font-size: 0.8rem;">Active loans</span>
+        </div>
+        <div class="stat-icon-wrapper stat-icon-primary">
+          <i class="bi bi-bookmarks-fill"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-sm-6 col-xl-3">
+    <div class="card stat-card border-0 h-100">
+      <div class="d-flex justify-content-between align-items-start">
+        <div>
+          <span class="stat-label">Total Completed</span>
+          <div class="stat-value text-success">{{ stats.returned_count }}</div>
+          <span class="text-xs text-success" style="font-size: 0.8rem;">Books read &amp; returned</span>
+        </div>
+        <div class="stat-icon-wrapper stat-icon-success">
+          <i class="bi bi-check2-all"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-sm-6 col-xl-3">
+    <div class="card stat-card border-0 h-100">
+      <div class="d-flex justify-content-between align-items-start">
+        <div>
+          <span class="stat-label">Overdue Items</span>
+          <div class="stat-value {% if stats.overdue_count > 0 %}text-danger{% else %}text-muted{% endif %}">{{ stats.overdue_count }}</div>
+          <span class="text-xs text-muted" style="font-size: 0.8rem;">Action needed</span>
+        </div>
+        <div class="stat-icon-wrapper {% if stats.overdue_count > 0 %}stat-icon-danger{% else %}stat-icon-info{% endif %}">
+          <i class="bi bi-clock-history"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-sm-6 col-xl-3">
+    <div class="card stat-card border-0 h-100">
+      <div class="d-flex justify-content-between align-items-start">
+        <div>
+          <span class="stat-label">Overdue Fines</span>
+          <div class="stat-value {% if stats.total_fines > 0 %}text-danger{% else %}text-muted{% endif %}">${{ "%.2f"|format(stats.total_fines) }}</div>
+          <span class="text-xs text-muted" style="font-size: 0.8rem;">Accrued penalty</span>
+        </div>
+        <div class="stat-icon-wrapper stat-icon-warning">
+          <i class="bi bi-currency-dollar"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-4">
+  <!-- Active Loans Section -->
+  <div class="col-lg-8">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-header bg-white py-3 border-bottom d-flex align-items-center justify-content-between">
+        <h6 class="fw-bold mb-0 text-dark"><i class="bi bi-book me-2 text-primary"></i>Currently In Your Possession</h6>
+        <a href="{{ url_for('user_my_books') }}" class="small text-decoration-none fw-semibold">View All Details &rarr;</a>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead>
+            <tr>
+              <th>Title</th>
+              <th>Borrowed Date</th>
+              <th>Due Date</th>
+              <th>Status</th>
+              <th class="text-end">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for b in stats.active_borrows %}
+              <tr>
+                <td>
+                  <div class="fw-bold text-dark">{{ b.book_title }}</div>
+                  <div class="text-muted small">by {{ b.author }}</div>
+                </td>
+                <td class="small">{{ b.borrow_date.split(' ')[0] }}</td>
+                <td class="small fw-semibold {% if b.status == 'overdue' %}text-danger{% endif %}">{{ b.due_date.split(' ')[0] }}</td>
+                <td>
+                  {% if b.status == 'overdue' %}
+                    <span class="badge-status badge-overdue"><i class="bi bi-exclamation-triangle-fill"></i> Overdue (${{ "%.2f"|format(b.fine_amount) }})</span>
+                  {% else %}
+                    <span class="badge-status badge-borrowed"><i class="bi bi-hourglass-split"></i> On Loan</span>
+                  {% endif %}
+                </td>
+                <td class="text-end">
+                  <form method="POST" action="{{ url_for('user_return_book', record_id=b.id) }}" onsubmit="return confirm('Return \'{{ b.book_title }}\' now?');">
+                    <button type="submit" class="btn btn-sm btn-success rounded-pill px-3 shadow-sm">
+                      <i class="bi bi-arrow-return-left me-1"></i> Return
+                    </button>
+                  </form>
+                </td>
+              </tr>
+            {% else %}
+              <tr>
+                <td colspan="5" class="text-center py-5 text-muted">
+                  <i class="bi bi-journal-check fs-1 d-block mb-2 text-secondary"></i>
+                  You have no active borrowed books.
+                  <div class="mt-2">
+                    <a href="{{ url_for('user_books') }}" class="btn btn-sm btn-primary rounded-pill">Find a Book to Read</a>
+                  </div>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Quick Info & Reading History -->
+  <div class="col-lg-4">
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-header bg-white py-3 border-bottom">
+        <h6 class="fw-bold mb-0 text-dark"><i class="bi bi-info-circle-fill me-2 text-primary"></i>Borrowing Guidelines</h6>
+      </div>
+      <div class="card-body">
+        <ul class="list-unstyled mb-0 small text-secondary d-flex flex-column gap-2">
+          <li class="d-flex align-items-start gap-2">
+            <i class="bi bi-check-circle-fill text-success mt-0.5"></i>
+            <span>Standard loan period is <strong>14 days</strong> per book.</span>
+          </li>
+          <li class="d-flex align-items-start gap-2">
+            <i class="bi bi-check-circle-fill text-success mt-0.5"></i>
+            <span>You may have up to <strong>5 active books</strong> at one time.</span>
+          </li>
+          <li class="d-flex align-items-start gap-2">
+            <i class="bi bi-exclamation-triangle-fill text-warning mt-0.5"></i>
+            <span>Overdue fines are calculated at <strong>$2.00 per day</strong> past the due date.</span>
+          </li>
+          <li class="d-flex align-items-start gap-2">
+            <i class="bi bi-info-circle-fill text-info mt-0.5"></i>
+            <span>Return books at any time through your dashboard or at the library circulation desk.</span>
+          </li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-white py-3 border-bottom">
+        <h6 class="fw-bold mb-0 text-dark"><i class="bi bi-clock-history me-2 text-primary"></i>Recent History</h6>
+      </div>
+      <div class="card-body p-0">
+        <ul class="list-group list-group-flush">
+          {% for item in stats.recent_history %}
+            <li class="list-group-item py-2.5 px-3 d-flex justify-content-between align-items-center">
+              <div>
+                <div class="small fw-semibold text-dark text-truncate" style="max-width: 180px;">{{ item.book_title }}</div>
+                <span class="text-xs text-muted" style="font-size: 0.72rem;">{{ item.borrow_date.split(' ')[0] }}</span>
+              </div>
+              <span class="badge {% if item.status == 'returned' %}bg-success-subtle text-success border border-success-subtle{% elif item.status == 'overdue' %}bg-danger-subtle text-danger border border-danger-subtle{% else %}bg-primary-subtle text-primary border border-primary-subtle{% endif %}">
+                {{ item.status | capitalize }}
+              </span>
+            </li>
+          {% else %}
+            <li class="list-group-item py-3 text-center text-muted small">No past borrowing history.</li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

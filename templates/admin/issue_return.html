@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+
+{% block title %}Issue & Return Books - LibriVerse{% endblock %}
+{% block header_title %}Circulation Desk & Transactions{% endblock %}
+
+{% block content %}
+<!-- Issue Book Form Card -->
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-header bg-white py-3 border-bottom">
+    <h6 class="fw-bold mb-0 text-dark"><i class="bi bi-box-arrow-up-right me-2 text-primary"></i>Issue a Book to Member</h6>
+  </div>
+  <div class="card-body p-3">
+    <form method="POST" action="{{ url_for('admin_issue_book') }}" class="row g-3 align-items-end">
+      <div class="col-md-5">
+        <label class="form-label small fw-semibold">Select Available Book *</label>
+        <select class="form-select" name="book_id" required>
+          <option value="">-- Choose Book --</option>
+          {% for b in books %}
+            <option value="{{ b.id }}" {% if b.available_copies <= 0 %}disabled{% endif %}>
+              {{ b.title }} ({{ b.available_copies }} available) {% if b.available_copies <= 0 %}- Out of Stock{% endif %}
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-4">
+        <label class="form-label small fw-semibold">Select Member *</label>
+        <select class="form-select" name="user_id" required>
+          <option value="">-- Choose Member --</option>
+          {% for u in users %}
+            <option value="{{ u.id }}">{{ u.full_name }} (@{{ u.username }})</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label small fw-semibold">Duration (Days)</label>
+        <input type="number" class="form-control" name="days" value="14" min="1" max="90" required>
+      </div>
+      <div class="col-md-1">
+        <button type="submit" class="btn btn-primary w-100" title="Issue Book">
+          <i class="bi bi-check-lg"></i> Issue
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Circulation Records Table Header & Filters -->
+<div class="d-flex flex-column flex-md-row align-items-start align-items-md-center justify-content-between gap-3 mb-3">
+  <div>
+    <h5 class="fw-bold mb-0">Circulation Records</h5>
+    <span class="text-muted small">Real-time status of issued, overdue, and returned books.</span>
+  </div>
+  <div class="btn-group shadow-sm bg-white rounded" role="group" aria-label="Status filter">
+    <a href="{{ url_for('admin_issues', status='all') }}" class="btn btn-sm {% if current_status == 'all' or not current_status %}btn-primary{% else %}btn-outline-secondary border-0{% endif %}">
+      All ({{ records|length }})
+    </a>
+    <a href="{{ url_for('admin_issues', status='borrowed') }}" class="btn btn-sm {% if current_status == 'borrowed' %}btn-primary{% else %}btn-outline-secondary border-0{% endif %}">
+      Borrowed
+    </a>
+    <a href="{{ url_for('admin_issues', status='overdue') }}" class="btn btn-sm {% if current_status == 'overdue' %}btn-danger{% else %}btn-outline-secondary border-0{% endif %}">
+      Overdue
+    </a>
+    <a href="{{ url_for('admin_issues', status='returned') }}" class="btn btn-sm {% if current_status == 'returned' %}btn-success{% else %}btn-outline-secondary border-0{% endif %}">
+      Returned
+    </a>
+  </div>
+</div>
+
+<!-- Transactions Table Card -->
+<div class="card border-0 shadow-sm">
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0 filterable-table">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Book Title</th>
+          <th>Borrower</th>
+          <th>Borrow Date</th>
+          <th>Due Date</th>
+          <th>Status</th>
+          <th>Return Date</th>
+          <th>Fine</th>
+          <th class="text-end">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for rec in records %}
+          <tr>
+            <td class="text-muted small">#{{ rec.id }}</td>
+            <td>
+              <div class="fw-semibold text-dark">{{ rec.book_title }}</div>
+              <div class="text-muted small">by {{ rec.author }}</div>
+            </td>
+            <td>
+              <div class="fw-medium">{{ rec.user_name }}</div>
+              <div class="text-muted small">@{{ rec.username }}</div>
+            </td>
+            <td class="small">{{ rec.borrow_date.split(' ')[0] }}</td>
+            <td class="small fw-semibold {% if rec.status == 'overdue' %}text-danger{% endif %}">
+              {{ rec.due_date.split(' ')[0] }}
+            </td>
+            <td>
+              {% if rec.status == 'borrowed' %}
+                <span class="badge-status badge-borrowed"><i class="bi bi-hourglass-split"></i> Borrowed</span>
+              {% elif rec.status == 'overdue' %}
+                <span class="badge-status badge-overdue"><i class="bi bi-exclamation-triangle-fill"></i> Overdue</span>
+              {% else %}
+                <span class="badge-status badge-returned"><i class="bi bi-check-circle-fill"></i> Returned</span>
+              {% endif %}
+            </td>
+            <td class="small text-muted">
+              {% if rec.return_date %}
+                {{ rec.return_date.split(' ')[0] }}
+              {% else %}
+                &mdash;
+              {% endif %}
+            </td>
+            <td>
+              {% if rec.fine_amount > 0 %}
+                <span class="badge bg-danger-subtle text-danger border border-danger-subtle fw-semibold">
+                  ${{ "%.2f"|format(rec.fine_amount) }}
+                </span>
+              {% else %}
+                <span class="text-muted small">$0.00</span>
+              {% endif %}
+            </td>
+            <td class="text-end">
+              {% if rec.status in ['borrowed', 'overdue'] %}
+                <form method="POST" action="{{ url_for('admin_return_book', record_id=rec.id) }}" class="d-inline" onsubmit="return confirm('Confirm returning \'{{ rec.book_title }}\'?');">
+                  <button type="submit" class="btn btn-sm btn-success py-1 px-2.5 rounded-pill shadow-sm" title="Accept Return">
+                    <i class="bi bi-arrow-return-left me-1"></i> Accept Return
+                  </button>
+                </form>
+              {% else %}
+                <span class="badge bg-light text-muted border">Completed</span>
+              {% endif %}
+            </td>
+          </tr>
+        {% else %}
+          <tr>
+            <td colspan="9" class="text-center py-5 text-muted">
+              <i class="bi bi-inbox fs-1 d-block mb-2 text-secondary"></i>
+              No circulation records found in this view.
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

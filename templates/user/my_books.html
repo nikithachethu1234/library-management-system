@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+
+{% block title %}My Borrowed Books - LibriVerse{% endblock %}
+{% block header_title %}My Loan Records{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-column flex-md-row align-items-start align-items-md-center justify-content-between gap-3 mb-4">
+  <div>
+    <h4 class="fw-bold mb-1">My Books &amp; History</h4>
+    <p class="text-muted small mb-0">Manage your active loans, track upcoming return deadlines, and review past reading logs.</p>
+  </div>
+  <a href="{{ url_for('user_books') }}" class="btn btn-primary btn-sm rounded-pill px-3 shadow-sm">
+    <i class="bi bi-plus-circle me-1"></i> Borrow More Books
+  </a>
+</div>
+
+<!-- Active Borrowings Section -->
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-header bg-white py-3 border-bottom d-flex align-items-center justify-content-between">
+    <h6 class="fw-bold mb-0 text-dark">
+      <i class="bi bi-bookmark-star-fill me-2 text-primary"></i>Currently Borrowed Books ({{ active_borrows|length }})
+    </h6>
+    <span class="badge bg-light text-muted border">Max loan: 5 books</span>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead>
+        <tr>
+          <th>Book</th>
+          <th>Category</th>
+          <th>Date Borrowed</th>
+          <th>Return Due Date</th>
+          <th>Status</th>
+          <th>Fine</th>
+          <th class="text-end">Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for b in active_borrows %}
+          <tr>
+            <td>
+              <div class="fw-bold text-dark">{{ b.book_title }}</div>
+              <div class="text-muted small">by {{ b.author }} &bull; ISBN: {{ b.isbn }}</div>
+            </td>
+            <td><span class="badge bg-light text-dark border">{{ b.category }}</span></td>
+            <td class="small">{{ b.borrow_date.split(' ')[0] }}</td>
+            <td class="small fw-semibold {% if b.status == 'overdue' %}text-danger{% endif %}">
+              {{ b.due_date.split(' ')[0] }}
+            </td>
+            <td>
+              {% if b.status == 'overdue' %}
+                <span class="badge-status badge-overdue"><i class="bi bi-exclamation-triangle-fill"></i> Overdue</span>
+              {% else %}
+                <span class="badge-status badge-borrowed"><i class="bi bi-hourglass-split"></i> Active Loan</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if b.fine_amount > 0 %}
+                <span class="badge bg-danger-subtle text-danger border border-danger-subtle fw-semibold">
+                  ${{ "%.2f"|format(b.fine_amount) }}
+                </span>
+              {% else %}
+                <span class="text-muted small">$0.00</span>
+              {% endif %}
+            </td>
+            <td class="text-end">
+              <form method="POST" action="{{ url_for('user_return_book', record_id=b.id) }}" onsubmit="return confirm('Confirm returning \'{{ b.book_title }}\'?');">
+                <button type="submit" class="btn btn-sm btn-success rounded-pill px-3 shadow-sm">
+                  <i class="bi bi-arrow-return-left me-1"></i> Return Book
+                </button>
+              </form>
+            </td>
+          </tr>
+        {% else %}
+          <tr>
+            <td colspan="7" class="text-center py-5 text-muted">
+              <i class="bi bi-book fs-1 d-block mb-2 text-secondary"></i>
+              You currently have no active borrowed books.
+              <div class="mt-2">
+                <a href="{{ url_for('user_books') }}" class="btn btn-sm btn-outline-primary rounded-pill">Explore Library Catalog</a>
+              </div>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Full Reading History -->
+<div class="card border-0 shadow-sm">
+  <div class="card-header bg-white py-3 border-bottom d-flex align-items-center justify-content-between">
+    <h6 class="fw-bold mb-0 text-dark">
+      <i class="bi bi-clock-history me-2 text-primary"></i>Full Borrowing History ({{ all_borrows|length }})
+    </h6>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Book Title</th>
+          <th>Borrow Date</th>
+          <th>Due Date</th>
+          <th>Return Date</th>
+          <th>Status</th>
+          <th>Fine Paid / Due</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for b in all_borrows %}
+          <tr>
+            <td class="text-muted small">#{{ b.id }}</td>
+            <td>
+              <div class="fw-semibold text-dark">{{ b.book_title }}</div>
+              <div class="text-muted small">by {{ b.author }}</div>
+            </td>
+            <td class="small">{{ b.borrow_date.split(' ')[0] }}</td>
+            <td class="small">{{ b.due_date.split(' ')[0] }}</td>
+            <td class="small text-muted">{{ b.return_date.split(' ')[0] if b.return_date else '—' }}</td>
+            <td>
+              {% if b.status == 'returned' %}
+                <span class="badge-status badge-returned"><i class="bi bi-check-circle-fill"></i> Returned</span>
+              {% elif b.status == 'overdue' %}
+                <span class="badge-status badge-overdue"><i class="bi bi-exclamation-triangle-fill"></i> Overdue</span>
+              {% else %}
+                <span class="badge-status badge-borrowed"><i class="bi bi-hourglass-split"></i> Borrowed</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if b.fine_amount > 0 %}
+                <span class="badge bg-danger-subtle text-danger border border-danger-subtle">
+                  ${{ "%.2f"|format(b.fine_amount) }}
+                </span>
+              {% else %}
+                <span class="text-muted small">$0.00</span>
+              {% endif %}
+            </td>
+          </tr>
+        {% else %}
+          <tr>
+            <td colspan="7" class="text-center py-4 text-muted">No transactions found.</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

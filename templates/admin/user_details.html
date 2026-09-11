@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+
+{% block title %}Member History - {{ user.full_name }} - LibriVerse{% endblock %}
+{% block header_title %}Member Activity History{% endblock %}
+
+{% block content %}
+<div class="mb-3">
+  <a href="{{ url_for('admin_users') }}" class="btn btn-outline-secondary btn-sm rounded-pill">
+    <i class="bi bi-arrow-left me-1"></i> Back to Members
+  </a>
+</div>
+
+<!-- Member Card -->
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-body p-4">
+    <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3">
+      <div class="d-flex align-items-center gap-3">
+        <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center fs-2 fw-bold" style="width: 64px; height: 64px;">
+          {{ user.full_name[0] | upper }}
+        </div>
+        <div>
+          <h4 class="fw-bold mb-1">{{ user.full_name }}</h4>
+          <div class="text-muted small">
+            <span><i class="bi bi-person me-1"></i>@{{ user.username }}</span> &bull;
+            <span><i class="bi bi-envelope me-1"></i>{{ user.email }}</span> &bull;
+            <span><i class="bi bi-calendar-check me-1"></i>Member Since: {{ user.created_at.split(' ')[0] if user.created_at else 'N/A' }}</span>
+          </div>
+        </div>
+      </div>
+      <div>
+        <span class="badge bg-primary px-3 py-2 rounded-pill fs-6 text-capitalize">
+          Role: {{ user.role }}
+        </span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Member Circulation History -->
+<div class="card border-0 shadow-sm">
+  <div class="card-header bg-white py-3 border-bottom d-flex align-items-center justify-content-between">
+    <h6 class="fw-bold mb-0 text-dark"><i class="bi bi-journal-text me-2 text-primary"></i>All Borrowing Transactions ({{ history|length }})</h6>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Book Title</th>
+          <th>Category</th>
+          <th>Borrow Date</th>
+          <th>Due Date</th>
+          <th>Status</th>
+          <th>Return Date</th>
+          <th>Fine</th>
+          <th class="text-end">Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for rec in history %}
+          <tr>
+            <td class="text-muted small">#{{ rec.id }}</td>
+            <td>
+              <div class="fw-semibold text-dark">{{ rec.book_title }}</div>
+              <div class="text-muted small">by {{ rec.author }}</div>
+            </td>
+            <td><span class="badge bg-light text-dark border">{{ rec.category }}</span></td>
+            <td class="small">{{ rec.borrow_date.split(' ')[0] }}</td>
+            <td class="small fw-semibold {% if rec.status == 'overdue' %}text-danger{% endif %}">{{ rec.due_date.split(' ')[0] }}</td>
+            <td>
+              {% if rec.status == 'borrowed' %}
+                <span class="badge-status badge-borrowed"><i class="bi bi-hourglass-split"></i> Borrowed</span>
+              {% elif rec.status == 'overdue' %}
+                <span class="badge-status badge-overdue"><i class="bi bi-exclamation-triangle-fill"></i> Overdue</span>
+              {% else %}
+                <span class="badge-status badge-returned"><i class="bi bi-check-circle-fill"></i> Returned</span>
+              {% endif %}
+            </td>
+            <td class="small text-muted">{{ rec.return_date.split(' ')[0] if rec.return_date else '—' }}</td>
+            <td>
+              {% if rec.fine_amount > 0 %}
+                <span class="badge bg-danger-subtle text-danger border border-danger-subtle fw-semibold">
+                  ${{ "%.2f"|format(rec.fine_amount) }}
+                </span>
+              {% else %}
+                <span class="text-muted small">$0.00</span>
+              {% endif %}
+            </td>
+            <td class="text-end">
+              {% if rec.status in ['borrowed', 'overdue'] %}
+                <form method="POST" action="{{ url_for('admin_return_book', record_id=rec.id) }}" class="d-inline" onsubmit="return confirm('Process return for this book?');">
+                  <button type="submit" class="btn btn-sm btn-success rounded-pill px-2.5">
+                    <i class="bi bi-arrow-return-left me-1"></i> Return
+                  </button>
+                </form>
+              {% else %}
+                <span class="text-muted small">Returned</span>
+              {% endif %}
+            </td>
+          </tr>
+        {% else %}
+          <tr>
+            <td colspan="9" class="text-center py-5 text-muted">
+              No borrowing history recorded for this member.
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
